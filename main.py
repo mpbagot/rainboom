@@ -38,7 +38,7 @@ def projectPoint(point):
     global CAMERA_DEPTH
     global SCREEN_SIZE
 
-    print(point)
+    # print(point)
 
     if point[2] > 0:
         x = (SCREEN_SIZE[0]/2)+point[0]*CAMERA_DEPTH/point[2]
@@ -46,6 +46,7 @@ def projectPoint(point):
     else:
         x = y = -999
 
+    # print(x, y)
     return (int(x), int(y))
 
 def getDistance(point, cam):
@@ -71,7 +72,7 @@ def getLocalPos(point, camera):
 
     xtheta, ytheta = [xtheta-camThetas[0], ytheta-camThetas[1]]
 
-    y = vecMag*math.sin(ytheta)
+    y = -vecMag*math.sin(ytheta)
 
     m = math.sqrt(vecMag**2-y**2)
     x = m*math.sin(xtheta)
@@ -81,16 +82,24 @@ def getLocalPos(point, camera):
 if __name__ == "__main__":
     cam = Camera([0, 0, 0], [0, 0, 0])
     points = [(30, 30, 30), (10, 10, 10), (5, 5, 5), (0, 0, 20)]
-    points = [(0, 0, 5)]
+    points = [(0, 0, 5), (5, 0, 5), (-5, 0, 5), (3, 0, 3), (-3, 0, 3), (0, 5, 5)]
+    # Generate a cube of points
+    points = []
+    for z in range(-4, 5):
+        for y in range(-4, 5):
+            for x in range(-4, 5):
+                if z in [-4, 4] or y in [-4, 4] or x in [-4, 4]:
+                    points.append((x, y, z))
+                    # if z%2 == 0 and y%2 == 0 and x%2 == 0:
 
     clock = pygame.time.Clock()
     while True:
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_w:
-                    cam.pos[2] += 1
+                pass
+                # if event.key == pygame.K_w:
+                #     cam.pos[2] += 1
 
-                    
         screen.fill((255, 255, 255))
         cam.renderPoints(points)
         cam.renderInfo()
@@ -100,6 +109,10 @@ if __name__ == "__main__":
             cam.rot[0] += 0.005
         elif keys[pygame.K_a]:
             cam.rot[0] -= 0.005
+        if keys[pygame.K_w]:
+            cam.rot[1] += 0.005
+        elif keys[pygame.K_s]:
+            cam.rot[1] -= 0.005
 
 
         pygame.display.flip()
