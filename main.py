@@ -5,7 +5,7 @@ from time import sleep
 #Initialise the constants
 SCREEN_SIZE = (1200, 675)
 # the smaller this is, the bigger the fov (???)
-CAMERA_DEPTH = 512
+CAMERA_DEPTH = 750
 RENDER_DISTANCE = 20
 FOV = math.radians(75)
 
@@ -25,11 +25,15 @@ class Camera:
             scale = int((1-(dist/RENDER_DISTANCE))*10) if dist < RENDER_DISTANCE else 0
 
             screenPos = projectPoint(localPos)
-            pygame.draw.circle(screen, (0, 0, 0), screenPos, scale)
+            try:
+                pygame.draw.circle(screen, (0, 0, 0), screenPos, scale)
+            except OverflowError:
+                print('Scale:', scale)
+                print('Screen Position:', [round(a, 2) for a in screenPos])
 
     def renderDebug(self):
-        rot = [math.degrees(a) for a in self.rot]
-        pos = [math.degrees(a) for a in self.pos]
+        rot = [round(math.degrees(a), 2) for a in self.rot]
+        pos = [round(math.degrees(a), 2) for a in self.pos]
         font = pygame.font.SysFont(None, 20)
         text = font.render("Rotation:"+str(rot), True, (0, 0, 255))
         screen.blit(text, [10, 10])
@@ -119,7 +123,7 @@ if __name__ == "__main__":
     for z in range(-4, 5):
         for y in range(-4, 5):
             for x in range(-4, 5):
-                if z in [-4, 4] or y in [-4, 4] or x in [-4, 4]:
+                if x*z in [16, -16] or x*y in [16, -16] or z*y in [16, -16]:
                     points.append((x, y, z))
 
     clock = pygame.time.Clock()
