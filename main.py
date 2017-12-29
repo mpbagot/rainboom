@@ -27,11 +27,13 @@ class Camera:
             screenPos = projectPoint(localPos)
             pygame.draw.circle(screen, (0, 0, 0), screenPos, scale)
 
-    def renderInfo(self):
+    def renderDebug(self):
+        rot = [math.degrees(a) for a in self.rot]
+        pos = [math.degrees(a) for a in self.pos]
         font = pygame.font.SysFont(None, 20)
-        text = font.render("Rotation:"+str(self.rot), True, (0, 0, 255))
+        text = font.render("Rotation:"+str(rot), True, (0, 0, 255))
         screen.blit(text, [10, 10])
-        text = font.render("Position:"+str(self.pos), True, (0, 0, 255))
+        text = font.render("Position:"+str(pos), True, (0, 0, 255))
         screen.blit(text, [10, 30])
 
 def projectPoint(point):
@@ -54,6 +56,34 @@ def getDistance(point, cam):
     dist = math.sqrt((point[0])**2+(point[1])**2+(point[2])**2)
     return dist
 
+def fixTan(result, opp, adj):
+    if opp < 0:
+        if adj < 0:
+            # Third quadrant, result is positive
+            return math.pi - result
+        elif adj > 0:
+            # Second quadrant, result is negative
+            return result
+        else:
+            # 180 degrees
+            return math.pi
+    elif opp > 0:
+        if adj > 0:
+            # First quadrant, result is positive
+            return result
+        elif adj < 0:
+            # Fourth Quadrant, result is negative
+            return math.pi+result
+    else:
+        if adj > 0:
+            # 0 degrees
+            return 0
+        elif adj < 0:
+            # 180 degrees
+            return math.pi
+        else:
+            return 0
+
 def getLocalPos(point, camera):
     vecMag = getDistance(point, camera)
     point = [point[a]-camera.pos[a] for a in range(3)]
@@ -65,10 +95,11 @@ def getLocalPos(point, camera):
         return (-5, -5, -5)
 
     # Calculate the angles
+    # TODO Adjust the angles for the different quadrants
     # x/z
-    xtheta = math.atan(point[0]/point[2])
+    xtheta = fixTan(math.atan(point[0]/point[2]), point[0], point[2])
     # y/xzMag
-    ytheta = math.atan(point[1]/math.sqrt(point[2]**2+point[0]**2))
+    ytheta = fixTan(math.atan(point[1]/math.sqrt(point[2]**2+point[0]**2)), point[1], math.sqrt(point[2]**2+point[0]**2))
 
     xtheta, ytheta = [xtheta-camThetas[0], ytheta-camThetas[1]]
 
@@ -90,19 +121,16 @@ if __name__ == "__main__":
             for x in range(-4, 5):
                 if z in [-4, 4] or y in [-4, 4] or x in [-4, 4]:
                     points.append((x, y, z))
-                    # if z%2 == 0 and y%2 == 0 and x%2 == 0:
 
     clock = pygame.time.Clock()
     while True:
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 pass
-                # if event.key == pygame.K_w:
-                #     cam.pos[2] += 1
 
         screen.fill((255, 255, 255))
         cam.renderPoints(points)
-        cam.renderInfo()
+        cam.renderDebug()
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_d]:
