@@ -2,7 +2,7 @@ import pygame
 import math
 from time import sleep, time
 
-from math_helper import fixTan
+from math_helper import fixTan, getAngleNormalToLight
 
 #Initialise the constants
 SCREEN_SIZE = (1200, 675)
@@ -11,6 +11,8 @@ SCREEN_SIZE = (1200, 675)
 CAMERA_DEPTH = 750
 RENDER_DISTANCE = 20
 FOV = math.radians(75)
+
+AMBIENT_LIGHT_MULT = [31, 31, 31]
 
 pygame.init()
 
@@ -41,21 +43,7 @@ class Camera:
 
         for group in self.scene.groups:
             group.render(self)
-            # localPos = point.getLocalPos(self)
-            # if localPos[2] <= 0:
-            #     continue
-            # dist = point.getDistance(self)
-            # if dist > RENDER_DISTANCE:
-            #     continue
-            # scale = int((1-(dist/RENDER_DISTANCE))*10) if dist < RENDER_DISTANCE else 0
-            #
-            # screenPos = point.projectPoint(localPos)
-            # try:
-            #     if 0 < screenPos[0] < SCREEN_SIZE[0] and 0 < screenPos[1] < SCREEN_SIZE[1]:
-            #         pygame.draw.circle(screen, (0, 0, 0), screenPos, scale)
-            # except OverflowError:
-            #     print('Scale:', scale)
-            #     print('Screen Position:', [round(a, 2) for a in screenPos])
+
         self.fps = 1/(time()-start)
 
     def renderDebug(self):
@@ -67,9 +55,25 @@ class Camera:
         text = font.render("Position:"+str(pos), True, (0, 0, 255))
         screen.blit(text, [10, 30])
 
+class PointLight:
+    def __init__(self, pos, power):
+        self.power = power
+        self.pos = pos
+
+    def setBrightness(self, power):
+        self.power = power
+
+    def calculateFalloff(self, otherPos):
+        '''
+        Calculate the light level at a given position based on falloff
+        '''
+        dist = math.sqrt(sum([a**2 for a in otherPos]))
+        return self.power/(dist**2)
+
 class Scene:
     def __init__(self):
         self.groups = []
+        self.lights = []
 
     def addGroup(self, group):
         if isinstance(group, Object):
@@ -81,6 +85,12 @@ class Scene:
         group = Group()
         group.addObject(obj)
         self.groups.append(group)
+
+    def addLight(self, light):
+        self.lights.append(light)
+
+    def getLights(self):
+        return self.lights
 
 class Object:
     def __init__(self):
@@ -107,15 +117,65 @@ class Group:
 class Triangle:
     def __init__(self, vertices):
         self.vertices = vertices
+        self.colour = [0, 255, 0]
 
     def render(self, cam):
         '''
         Render this point to the given camera's screen
         '''
+        # TODO Somehow figure out how to render even if some points cannot be rendered, or are offscreen
+
+        # TODO Get the colour to render the triangle with
         screenPoints = [vertex.render(cam) for vertex in self.vertices]
 
-        for a in range(len(screenPoints)):
-            pygame.draw.line(cam.screen, (0, 0, 0), screenPoints[a], screenPoints[(a+1)%len(screenPoints)], 3)
+        pygame.draw.polygon(cam.screen, self.getShadeColour(cam.scene.getLights()), screenPoints)
+
+        # TODO Add a flag for hard edges on polygons
+        if False:
+            pygame.draw.lines(cam.screen, (0, 0, 0), True, screenPoints, 3)
+
+    def getCentrePos(self):
+        '''
+        Get the 3D position of the centre of the triangle
+        '''
+        poss = [vert.pos for vert in self.vertices]
+
+        avgPos = [0, 0, 0]
+        for i in range(3):
+            value = sum([pos[i] for pos in poss])/len(poss)
+            avgPos[i] = value
+
+        return avgPos
+
+    def getNormal(self):
+        '''
+        Get the normal vector of the triangle
+        '''
+        U = [self.vertices[1].pos[a]-self.vertices[0].pos[a] for a in range(3)]
+        V = [self.vertices[2].pos[a]-self.vertices[0].pos[a] for a in range(3)]
+        return [U[(a+1)%3]*V[(a+2)%3] - U[(a+2)%3]*V[(a+1)%3] for a in range(3)]
+
+    def getShadeColour(self, lights):
+        '''
+        Get the flat shading colour of this triangle
+        '''
+        lightMult = list(AMBIENT_LIGHT_MULT)
+        # TODO Get other lighting factors here
+        # diffuse, specular, etc...
+        for light in lights:
+            centrePos = self.getCentrePos()
+            power = light.calculateFalloff(centrePos)
+
+            normal = self.getNormal()
+
+            theta = getAngleNormalToLight(normal, light)
+            diffuse = power*math.sin(theta)
+
+        lightMult = [a/255 for a in lightMult]
+
+        shadeColour = [self.colour[channel]*(lightMult[channel]) for channel in range(len(self.colour))]
+
+        return [min(channel, 255) for channel in shadeColour]
 
 class Vertex:
     def __init__(self, x, y=0, z=0):
@@ -216,6 +276,7 @@ if __name__ == "__main__":
         obj.addPolygon(face)
 
     scene.addObject(obj)
+    scene.addLight(PointLight([0, 0, 0], 25))
 
     cams[0].setScene(scene)
     cams[1].setScene(scene)
@@ -232,6 +293,7 @@ if __name__ == "__main__":
         cams[int(camIndex)].renderDebug()
 
         keys = pygame.key.get_pressed()
+        # Handle cam rotation
         if keys[pygame.K_d]:
             cams[int(camIndex)].rot[0] += 0.01
         elif keys[pygame.K_a]:
@@ -241,8 +303,18 @@ if __name__ == "__main__":
         elif keys[pygame.K_s]:
             cams[int(camIndex)].rot[1] -= 0.01
 
+        # Handle basic cam motion
+        if keys[pygame.K_UP]:
+            cams[int(camIndex)].pos[2] += 0.01
+        elif keys[pygame.K_DOWN]:
+            cams[int(camIndex)].pos[2] -= 0.01
+        if keys[pygame.K_RIGHT]:
+            cams[int(camIndex)].pos[0] += 0.01
+        if keys[pygame.K_LEFT]:
+            cams[int(camIndex)].pos[0] -= 0.01
+
         if pygame.time.get_ticks()%5000 < 50:
-            print('Average FPS:', cams[int(camIndex)].fps)
+            print('Current FPS:', cams[int(camIndex)].fps)
 
         pygame.display.flip()
 

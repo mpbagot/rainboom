@@ -24,3 +24,11 @@ def fixTan(opp, adj):
             # Fourth Quadrant, result is negative
             return math.pi +result
     return 0
+
+def getAngleNormalToLight(normal, light):
+    result = 0
+    if abs(result) < 0:
+        return 0
+    elif abs(result) > math.pi:
+        return math.pi
+    return result
