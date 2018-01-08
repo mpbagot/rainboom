@@ -101,16 +101,20 @@ def getLocalPos(point, camera):
 
     # Calculate the angles
     # x/z
-    xtheta = fixTan(point[0], point[2])-camera.rot[0]
+    xtheta = fixTan(point[2], point[0])+camera.rot[0]
     # y/xzMag
     xzMag = math.sqrt(point[2]**2+point[0]**2)
-    ytheta = fixTan(point[1], xzMag)-camera.rot[1]
 
-    y = vecMag*math.sin(ytheta)
+    x = xzMag*math.cos(xtheta)
+    point[2] = xzMag*math.sin(xtheta)
 
-    m = math.sqrt(vecMag**2-y**2)
-    x = m*math.sin(xtheta)
-    z = m*math.cos(xtheta)
+    ytheta = fixTan(point[1], point[2])-camera.rot[1]
+
+    zyMag = math.sqrt(point[2]**2+point[1]**2)
+
+    y = zyMag*math.sin(ytheta)
+    z = zyMag*math.cos(ytheta)
+
     return (x, y, z)
 
 if __name__ == "__main__":
@@ -141,16 +145,17 @@ if __name__ == "__main__":
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_d]:
-            cam.rot[0] += 0.005
+            cam.rot[0] += 0.01
         elif keys[pygame.K_a]:
-            cam.rot[0] -= 0.005
+            cam.rot[0] -= 0.01
         if keys[pygame.K_w]:
-            cam.rot[1] += 0.005
+            cam.rot[1] += 0.01
         elif keys[pygame.K_s]:
-            cam.rot[1] -= 0.005
+            cam.rot[1] -= 0.01
 
         if pygame.time.get_ticks()%5000 < 10:
             print('Average FPS:', cam.fps)
 
         pygame.display.flip()
-    clock.tick(60)
+
+        clock.tick(60)
