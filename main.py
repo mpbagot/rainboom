@@ -32,7 +32,7 @@ if __name__ == "__main__":
         obj.addPolygon(face)
 
     scene.addObject(obj)
-    pLight = PointLight([0, 0, 0], 15)
+    pLight = DirectionalLight([0, 0, 0], 1)
     lightPointer = scene.addLight(pLight)
 
     cams[0].setScene(scene)
@@ -71,10 +71,9 @@ if __name__ == "__main__":
             cams[int(camIndex)].pos[0] -= 0.01
 
         if keys[pygame.K_l]:
-            scene.lights[lightPointer].pos[2] += 0.01
+            scene.lights[lightPointer].rot[0] += 0.01
         elif keys[pygame.K_o]:
-            scene.lights[lightPointer].pos[2] -= 0.01
-
+            scene.lights[lightPointer].rot[0] -= 0.01
 
         if pygame.time.get_ticks()%5000 < 50:
             print('Current FPS:', cams[int(camIndex)].fps)

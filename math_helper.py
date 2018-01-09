@@ -38,11 +38,14 @@ def getAngleNormalToLight(normal, normalPos, light):
     xzMag = math.sqrt(normal[2]**2+normal[0]**2)
     rotation[1] = math.atan(normal[1]/xzMag)
 
-    tempVert = objects_3d.Vertex(light.pos)
+    # Create a temporary vertex and camera
+    tempVert = objects_3d.Vertex(light.getPos(normalPos))
     tempCam = objects_3d.Camera(normalPos, rotation, None)
 
+    # Recalculate the position
     pos = tempVert.getLocalPos(tempCam)
 
+    # Calculate the angle
     xyMag = math.sqrt(pos[1]**2+pos[0]**2)
     if xyMag < 0.0001:
         result = math.pi/2

@@ -45,7 +45,7 @@ class Camera:
 
     def renderDebug(self):
         rot = [round(math.degrees(a), 2) for a in self.rot]
-        pos = [round(math.degrees(a), 2) for a in self.pos]
+        pos = [round(a, 2) for a in self.pos]
         font = pygame.font.SysFont(None, 20)
         text = font.render("Rotation:"+str(rot), True, (0, 0, 255))
         self.screen.blit(text, [10, 10])
@@ -64,6 +64,9 @@ class PointLight:
     def setColour(self, colour):
         self.colour = colour
 
+    def getPos(self, otherPos):
+        return self.pos
+
     def calculateFalloff(self, otherPos):
         '''
         Calculate the light level at a given position based on falloff
@@ -72,6 +75,26 @@ class PointLight:
         if dist == 0:
             return 999999
         return self.power/(dist**2)
+
+class DirectionalLight(PointLight):
+    def __init__(self, rot, power):
+        super().__init__([0, 0, 0], power)
+        self.rot = rot
+
+    def getPos(self, otherPos):
+        calcPos = [0, 0, 0]
+
+        calcPos[0] = 10*math.cos(self.rot[0])
+        calcPos[2] = 10*math.sin(self.rot[0])
+        calcPos[1] = 10*math.tan(self.rot[1])
+
+        return [otherPos[a]-calcPos[a] for a in range(3)]
+
+    def calculateFalloff(self, otherPos):
+        '''
+        Return the light brightness because it's the same regardless of position
+        '''
+        return self.power
 
 class Scene:
     def __init__(self):
@@ -132,7 +155,10 @@ class Triangle:
         # Get the colour to render the triangle with
         screenPoints = [vertex.render(cam) for vertex in self.vertices]
 
-        pygame.draw.polygon(cam.screen, self.getShadeColour(cam.scene.getLights()), screenPoints)
+        try:
+            pygame.draw.polygon(cam.screen, self.getShadeColour(cam.scene.getLights()), screenPoints)
+        except TypeError:
+            print(screenPoints)
 
         # TODO Add a flag for hard edges on polygons
         if False:
