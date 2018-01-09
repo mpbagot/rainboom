@@ -49,8 +49,6 @@ def getAngleNormalToLight(normal, normalPos, light):
     else:
         result = abs(fixTan(xyMag, pos[2]))
 
-    print(result)
-
     if result > math.pi/2 or result < 0:
         return 0
     return math.pi/2-result

@@ -73,7 +73,6 @@ if __name__ == "__main__":
         if keys[pygame.K_l]:
             scene.lights[lightPointer].pos[2] += 0.01
         elif keys[pygame.K_o]:
-            # print(scene.lights[lightPointer].pos)
             scene.lights[lightPointer].pos[2] -= 0.01
 
 
