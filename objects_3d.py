@@ -13,6 +13,17 @@ CAMERA_DEPTH = 750
 RENDER_DISTANCE = 20
 FOV = math.radians(75)
 
+FLAT = 0
+SMOOTH_GOURAUD = 1
+SMOOTH_PHONG = 2
+
+SHADING_MODE = FLAT
+
+HARD_OUTLINE = 3
+NO_OUTLINE = 4
+
+POLY_OUTLINE = HARD_OUTLINE
+
 AMBIENT_LIGHT_MULT = [31, 31, 31]
 
 class Camera:
@@ -156,12 +167,17 @@ class Triangle:
         screenPoints = [vertex.render(cam) for vertex in self.vertices]
 
         try:
-            pygame.draw.polygon(cam.screen, self.getShadeColour(cam.scene.getLights()), screenPoints)
+            if SHADING_MODE == FLAT:
+                pygame.draw.polygon(cam.screen, self.getShadeColour(cam.scene.getLights()), screenPoints)
+            elif SHADING_MODE == SMOOTH_GOURAUD:
+                pass
+            elif SHADING_MODE == SMOOTH_PHONG:
+                pass
         except TypeError:
             print(screenPoints)
 
         # TODO Add a flag for hard edges on polygons
-        if False:
+        if POLY_OUTLINE == HARD_OUTLINE:
             pygame.draw.lines(cam.screen, (0, 0, 0), True, screenPoints, 3)
 
     def getCentrePos(self):
@@ -189,6 +205,7 @@ class Triangle:
         '''
         Get the flat shading colour of this triangle
         '''
+        # Start with ambient light
         lightMult = list(AMBIENT_LIGHT_MULT)
         # TODO Get other lighting factors here
         # diffuse, specular, etc...
