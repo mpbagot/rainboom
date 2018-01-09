@@ -166,6 +166,7 @@ class Triangle:
         # Get the colour to render the triangle with
         screenPoints = [vertex.render(cam) for vertex in self.vertices]
 
+        # Render according to SHADING_MODE value
         try:
             if SHADING_MODE == FLAT:
                 pygame.draw.polygon(cam.screen, self.getShadeColour(cam.scene.getLights()), screenPoints)
@@ -176,7 +177,7 @@ class Triangle:
         except TypeError:
             print(screenPoints)
 
-        # TODO Add a flag for hard edges on polygons
+        # render hard edges on the polygon if option set
         if POLY_OUTLINE == HARD_OUTLINE:
             pygame.draw.lines(cam.screen, (0, 0, 0), True, screenPoints, 3)
 
@@ -186,6 +187,7 @@ class Triangle:
         '''
         poss = [vert.pos for vert in self.vertices]
 
+        # Average the three positions
         avgPos = [0, 0, 0]
         for i in range(3):
             value = sum([pos[i] for pos in poss])/len(poss)
@@ -197,8 +199,11 @@ class Triangle:
         '''
         Get the normal vector of the triangle
         '''
+        # Create the two vectors
         U = [self.vertices[1].pos[a]-self.vertices[0].pos[a] for a in range(3)]
         V = [self.vertices[2].pos[a]-self.vertices[0].pos[a] for a in range(3)]
+
+        # Take the cross product
         return [U[(a+1)%3]*V[(a+2)%3] - U[(a+2)%3]*V[(a+1)%3] for a in range(3)]
 
     def getShadeColour(self, lights):
@@ -236,14 +241,20 @@ class Vertex:
         '''
         Render this point to the given camera's screen
         '''
+        # Get the local pos and perform a check
         localPos = self.getLocalPos(cam)
         if localPos[2] <= 0:
             return
+
+        # Get the distance and perform a check
         dist = self.getDistance(cam)
         if dist > RENDER_DISTANCE:
             return
+
+        # Calculate the scale of the point
         scale = int((1-(dist/RENDER_DISTANCE))*10) if dist < RENDER_DISTANCE else 0
 
+        # Project the 3D point to the 2D screen
         screenPos = self.projectPoint(localPos)
         try:
             if 0 < screenPos[0] < SCREEN_SIZE[0] and 0 < screenPos[1] < SCREEN_SIZE[1]:
@@ -281,7 +292,7 @@ class Vertex:
         point = [self.pos[a]-camera.pos[a] for a in range(3)]
 
         # Calculate the angle
-        # x/z
+        # z/x
         xtheta = fixTan(point[2], point[0])+camera.rot[0]
         # xzMag
         xzMag = math.sqrt(point[2]**2+point[0]**2)
