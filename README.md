@@ -5,6 +5,9 @@ Rainboom is my own 3D rendering engine written in Python and utilises the Pygame
 ### Feature Todo:
  - ~~Fix 3D vertex projection~~ (COMPLETE)
  - ~~Implement wireframe rendering~~ (COMPLETE)
- - ~~Implement solid colour faces~~ (COMPLETE)
+ - ~~Add basic Quads and N-gons~~ (COMPLETE)
+ - Implement solid colour faces
+ - Add backface/occlusion culling
  - Implement simple flat shading
+ - Implement Gouraud smooth shading
  - Implement texturing for faces
