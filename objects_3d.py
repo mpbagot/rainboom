@@ -226,15 +226,19 @@ class Triangle:
         for v in range(len(self.vertices)):
             self.vertices[v].preRender(cam)
 
-        self.frameColour = self.getShadeColour(cam.scene.getLights())
-
         self.shouldRender = self.backFaceCull()
+        if not self.shouldRender:
+            return
+
+        self.frameColour = self.getShadeColour(cam.scene.getLights())
 
     def render(self, cam):
         '''
         Render this triangle to the given camera's screen
         '''
         # TODO Somehow figure out how to render even if some points cannot be rendered, or are offscreen
+        if not self.shouldRender:
+            return
 
         # Get the colour to render the triangle with
         screenPoints = [vertex.screenPos for vertex in self.vertices]
@@ -266,6 +270,24 @@ class Triangle:
         Return whether or not this triangle has successfully escaped backface culling
         '''
         normal = self.getNormal()
+        xthetaNormal = fixTan(normal[0], normal[2])
+
+        poss = [vert.localPos for vert in self.vertices]
+
+        # Average the three positions
+        avgPos = [0, 0, 0]
+        for i in range(3):
+            value = sum([pos[i] for pos in poss])/len(poss)
+            avgPos[i] = value
+
+        xthetaCam = fixTan(avgPos[0], avgPos[2])
+
+        diff = abs(xthetaCam-xthetaNormal)
+        if diff > math.pi:
+            diff = 2*math.pi-diff
+
+        if diff > 5*math.pi/9:
+            return False
 
         return True
 
