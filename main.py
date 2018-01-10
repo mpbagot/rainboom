@@ -25,8 +25,10 @@ if __name__ == "__main__":
 
     points = [Vertex(a, 0, 5) for a in range(-20, 20)]
 
-    points = [Vertex(0, 5, 5), Vertex(5, -5, 5), Vertex(-5, -5, 5)]
-    faces = [Triangle(points)]
+    # points = [Vertex(0, 5, 5), Vertex(5, -5, 5), Vertex(-5, -5, 5)]
+    points = [Vertex(0, 0, 5), Vertex(0, 5, 5), Vertex(2.5, 7.5, 5), Vertex(5, 5, 5), Vertex(5, 0, 5)]
+    # faces = [Triangle(points)]
+    faces = [NGon(points)]
 
     for face in faces:
         obj.addPolygon(face)

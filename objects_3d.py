@@ -24,6 +24,11 @@ NO_OUTLINE = 4
 
 POLY_OUTLINE = HARD_OUTLINE
 
+WIREFRAME = 5
+SHADED = 6
+
+RENDER_MODE = WIREFRAME
+
 AMBIENT_LIGHT_MULT = [31, 31, 31]
 
 class Camera:
@@ -152,6 +157,39 @@ class Group:
         for obj in self.objects:
             obj.render(cam)
 
+class NGon:
+    def __init__(self, vertices):
+        # Check the number of vertices
+        if len(vertices) < 3:
+            raise ValueError("Insufficient number of vertices.")
+        elif len(vertices) == 3:
+            print('Warning: 3 vertices used in N-gon. It is better to use a Triangle object instead.')
+
+        self.vertices = vertices
+        # Triangulate the quad
+        self.tris = []
+        n = len(vertices)
+        for a in range((n-2)//2):
+            self.tris += [Triangle([vertices[b] for b in [a, -a-1, -a-2]]), Triangle([vertices[b] for b in [a, -a-2, abs(-a-2)-1]])]
+        if (n-2)%2 == 1:
+            a = (n-2)//2
+            self.tris.append(Triangle([vertices[b] for b in [a, -a-1, -a-2]]))
+
+    def render(self, cam):
+        '''
+        Render this shape to the screen
+        '''
+        for tri in self.tris:
+            tri.render(cam)
+
+class Quad(NGon):
+    def __init__(self, vertices):
+        if len(vertices) > 4:
+            raise OverflowError('Too many vertices for a quad.')
+        elif len(vertices) < 4:
+            raise ValueError('Insufficient number of vertices.')
+        super().__init__(vertices)
+
 class Triangle:
     def __init__(self, vertices):
         self.vertices = vertices
@@ -159,27 +197,31 @@ class Triangle:
 
     def render(self, cam):
         '''
-        Render this point to the given camera's screen
+        Render this triangle to the given camera's screen
         '''
         # TODO Somehow figure out how to render even if some points cannot be rendered, or are offscreen
 
         # Get the colour to render the triangle with
         screenPoints = [vertex.render(cam) for vertex in self.vertices]
 
-        # Render according to SHADING_MODE value
-        try:
-            if SHADING_MODE == FLAT:
-                pygame.draw.polygon(cam.screen, self.getShadeColour(cam.scene.getLights()), screenPoints)
-            elif SHADING_MODE == SMOOTH_GOURAUD:
+        if RENDER_MODE == SHADED:
+            # Render according to SHADING_MODE value
+            try:
+                if SHADING_MODE == FLAT:
+                    pygame.draw.polygon(cam.screen, self.getShadeColour(cam.scene.getLights()), screenPoints)
+                elif SHADING_MODE == SMOOTH_GOURAUD:
+                    pass
+                elif SHADING_MODE == SMOOTH_PHONG:
+                    pass
+            except TypeError:
                 pass
-            elif SHADING_MODE == SMOOTH_PHONG:
-                pass
-        except TypeError:
-            print(screenPoints)
 
         # render hard edges on the polygon if option set
-        if POLY_OUTLINE == HARD_OUTLINE:
-            pygame.draw.lines(cam.screen, (0, 0, 0), True, screenPoints, 3)
+        if POLY_OUTLINE == HARD_OUTLINE or RENDER_MODE == WIREFRAME:
+            try:
+                pygame.draw.lines(cam.screen, (0, 0, 0), True, screenPoints, 3)
+            except TypeError:
+                pass
 
     def getCentrePos(self):
         '''
@@ -236,6 +278,8 @@ class Vertex:
             self.pos = x
         else:
             self.pos = [x, y, z]
+
+        self.localPos = list(self.pos)
 
     def render(self, cam):
         '''
@@ -308,4 +352,6 @@ class Vertex:
         y = zyMag*math.sin(ytheta)
         z = zyMag*math.cos(ytheta)
 
-        return (x, y, z)
+        self.localPos = [x, y, z]
+
+        return [x, y, z]
