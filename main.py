@@ -48,6 +48,7 @@ if __name__ == "__main__":
                     camIndex = not camIndex
 
         screen.fill((255, 255, 255))
+        cams[int(camIndex)].preRender()
         cams[int(camIndex)].renderScene()
         cams[int(camIndex)].renderDebug()
 

@@ -25,7 +25,8 @@ NO_OUTLINE = 4
 POLY_OUTLINE = HARD_OUTLINE
 
 WIREFRAME = 5
-SHADED = 6
+WIREFRAME_DOTS = 6
+SHADED = 7
 
 RENDER_MODE = WIREFRAME
 
@@ -44,6 +45,10 @@ class Camera:
         Set the scene to be rendered by this camera
         '''
         self.scene = scene
+
+    def preRender(self):
+        for g in range(len(self.scene.groups)):
+            self.scene.groups[g].preRender(self)
 
     def renderScene(self):
         '''
@@ -142,6 +147,10 @@ class Object:
     def addPolygon(self, poly):
         self.polygons.append(poly)
 
+    def preRender(self, cam):
+        for p in range(len(self.polygons)):
+            self.polygons[p].preRender(cam)
+
     def render(self, cam):
         for poly in self.polygons:
             poly.render(cam)
@@ -152,6 +161,10 @@ class Group:
 
     def addObject(self, obj):
         self.objects.append(obj)
+
+    def preRender(self, cam):
+        for o in range(len(self.objects)):
+            self.objects[o].preRender(cam)
 
     def render(self, cam):
         for obj in self.objects:
@@ -175,6 +188,13 @@ class NGon:
             a = (n-2)//2
             self.tris.append(Triangle([vertices[b] for b in [a, -a-1, -a-2]]))
 
+    def preRender(self, cam):
+        '''
+        Calculate all of the pre-render information
+        '''
+        for t in range(len(self.tris)):
+            self.tris[t].preRender(cam)
+
     def render(self, cam):
         '''
         Render this shape to the screen
@@ -195,6 +215,17 @@ class Triangle:
         self.vertices = vertices
         self.colour = [0, 255, 0]
 
+        self.frameColour = list(self.colour)
+
+    def preRender(self, cam):
+        '''
+        Calculate all of the pre-render information
+        '''
+        for v in range(len(self.vertices)):
+            self.vertices[v].preRender(cam)
+
+        self.frameColour = self.getShadeColour(cam.scene.getLights())
+
     def render(self, cam):
         '''
         Render this triangle to the given camera's screen
@@ -202,13 +233,13 @@ class Triangle:
         # TODO Somehow figure out how to render even if some points cannot be rendered, or are offscreen
 
         # Get the colour to render the triangle with
-        screenPoints = [vertex.render(cam) for vertex in self.vertices]
+        screenPoints = [vertex.screenPos for vertex in self.vertices]
 
         if RENDER_MODE == SHADED:
             # Render according to SHADING_MODE value
             try:
                 if SHADING_MODE == FLAT:
-                    pygame.draw.polygon(cam.screen, self.getShadeColour(cam.scene.getLights()), screenPoints)
+                    pygame.draw.polygon(cam.screen, self.frameColour, screenPoints)
                 elif SHADING_MODE == SMOOTH_GOURAUD:
                     pass
                 elif SHADING_MODE == SMOOTH_PHONG:
@@ -218,6 +249,9 @@ class Triangle:
 
         # render hard edges on the polygon if option set
         if POLY_OUTLINE == HARD_OUTLINE or RENDER_MODE == WIREFRAME:
+            if RENDER_MODE == WIREFRAME_DOTS:
+                [vertex.render(cam) for vertex in self.vertices]
+
             try:
                 pygame.draw.lines(cam.screen, (0, 0, 0), True, screenPoints, 3)
             except TypeError:
@@ -280,34 +314,46 @@ class Vertex:
             self.pos = [x, y, z]
 
         self.localPos = list(self.pos)
+        self.screenPos = [0, 0]
+        self.screenScale = 0
+        self.shouldRender = True
 
-    def render(self, cam):
+    def preRender(self, cam):
         '''
-        Render this point to the given camera's screen
+        Run the pre-render calculations for the vertex
         '''
         # Get the local pos and perform a check
-        localPos = self.getLocalPos(cam)
-        if localPos[2] <= 0:
+        self.localPos = self.getLocalPos(cam)
+        if self.localPos[2] <= 0:
+            self.shouldRender = False
             return
 
         # Get the distance and perform a check
         dist = self.getDistance(cam)
         if dist > RENDER_DISTANCE:
+            self.shouldRender = False
             return
 
         # Calculate the scale of the point
-        scale = int((1-(dist/RENDER_DISTANCE))*10) if dist < RENDER_DISTANCE else 0
+        self.screenScale = int((1-(dist/RENDER_DISTANCE))*10) if dist < RENDER_DISTANCE else 0
 
         # Project the 3D point to the 2D screen
-        screenPos = self.projectPoint(localPos)
-        try:
-            if 0 < screenPos[0] < SCREEN_SIZE[0] and 0 < screenPos[1] < SCREEN_SIZE[1]:
-                pygame.draw.circle(cam.screen, (0, 0, 0), screenPos, scale)
-        except OverflowError:
-            print('Scale:', scale)
-            print('Screen Position:', [round(a, 2) for a in screenPos])
+        self.screenPos = self.projectPoint(self.localPos)
+        self.shouldRender = (0 < self.screenPos[0] < SCREEN_SIZE[0] and 0 < self.screenPos[1] < SCREEN_SIZE[1])
 
-        return screenPos
+    def render(self, cam):
+        '''
+        Render this point to the given camera's screen
+        '''
+        if not self.shouldRender:
+            return
+        try:
+            pygame.draw.circle(cam.screen, (0, 0, 0), self.screenPos, self.screenScale)
+        except OverflowError:
+            print('Scale:', self.screenScale)
+            print('Screen Position:', [round(a, 2) for a in self.screenPos])
+
+        return self.screenPos
 
     def projectPoint(self, localPos):
         '''
