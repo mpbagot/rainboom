@@ -10,7 +10,8 @@ SCREEN_SIZE = (1200, 675)
 # SCREEN_SIZE = (800, 450)
 # the smaller this is, the bigger the fov (???)
 CAMERA_DEPTH = 750
-RENDER_DISTANCE = 20
+NEAR_CLIP = 0.001
+FAR_CLIP = 20
 FOV = math.radians(75)
 
 FLAT = 0
@@ -216,6 +217,7 @@ class Triangle:
         self.colour = [0, 255, 0]
 
         self.frameColour = list(self.colour)
+        self.shouldRender = True
 
     def preRender(self, cam):
         '''
@@ -225,6 +227,8 @@ class Triangle:
             self.vertices[v].preRender(cam)
 
         self.frameColour = self.getShadeColour(cam.scene.getLights())
+
+        self.shouldRender = self.backFaceCull()
 
     def render(self, cam):
         '''
@@ -257,6 +261,14 @@ class Triangle:
             except TypeError:
                 pass
 
+    def backFaceCull(self):
+        '''
+        Return whether or not this triangle has successfully escaped backface culling
+        '''
+        normal = self.getNormal()
+
+        return True
+
     def getCentrePos(self):
         '''
         Get the 3D position of the centre of the triangle
@@ -271,13 +283,24 @@ class Triangle:
 
         return avgPos
 
-    def getNormal(self):
+    def getGlobalNormal(self):
         '''
-        Get the normal vector of the triangle
+        Get the normal vector of the triangle in global 3D space
         '''
         # Create the two vectors
         U = [self.vertices[1].pos[a]-self.vertices[0].pos[a] for a in range(3)]
         V = [self.vertices[2].pos[a]-self.vertices[0].pos[a] for a in range(3)]
+
+        # Take the cross product
+        return [U[(a+1)%3]*V[(a+2)%3] - U[(a+2)%3]*V[(a+1)%3] for a in range(3)]
+
+    def getNormal(self):
+        '''
+        Get the normal vector of the triangle in cam/local 3D space
+        '''
+        # Create the two vectors
+        U = [self.vertices[1].localPos[a]-self.vertices[0].localPos[a] for a in range(3)]
+        V = [self.vertices[2].localPos[a]-self.vertices[0].localPos[a] for a in range(3)]
 
         # Take the cross product
         return [U[(a+1)%3]*V[(a+2)%3] - U[(a+2)%3]*V[(a+1)%3] for a in range(3)]
@@ -294,7 +317,7 @@ class Triangle:
             centrePos = self.getCentrePos()
             power = light.calculateFalloff(centrePos)
 
-            normal = self.getNormal()
+            normal = self.getGlobalNormal()
             theta = getAngleNormalToLight(normal, centrePos, light)
 
             diffuse = power*math.sin(theta)
@@ -328,17 +351,19 @@ class Vertex:
             self.shouldRender = False
             return
 
-        # Get the distance and perform a check
         dist = self.getDistance(cam)
-        if dist > RENDER_DISTANCE:
-            self.shouldRender = False
-            return
 
         # Calculate the scale of the point
-        self.screenScale = int((1-(dist/RENDER_DISTANCE))*10) if dist < RENDER_DISTANCE else 0
+        self.screenScale = int((1-(dist/FAR_CLIP))*10) if dist < FAR_CLIP else 0
 
         # Project the 3D point to the 2D screen
         self.screenPos = self.projectPoint(self.localPos)
+
+        # Get the distance and perform a check
+        if NEAR_CLIP > dist or dist > FAR_CLIP:
+            self.shouldRender = False
+            return
+
         self.shouldRender = (0 < self.screenPos[0] < SCREEN_SIZE[0] and 0 < self.screenPos[1] < SCREEN_SIZE[1])
 
     def render(self, cam):
