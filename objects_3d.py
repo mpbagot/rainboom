@@ -172,7 +172,7 @@ class Group:
             obj.render(cam)
 
 class NGon:
-    def __init__(self, vertices):
+    def __init__(self, vertices, flipped=False, backCull=True):
         # Check the number of vertices
         if len(vertices) < 3:
             raise ValueError("Insufficient number of vertices.")
@@ -184,10 +184,13 @@ class NGon:
         self.tris = []
         n = len(vertices)
         for a in range((n-2)//2):
-            self.tris += [Triangle([vertices[b] for b in [a, -a-1, -a-2]]), Triangle([vertices[b] for b in [a, -a-2, abs(-a-2)-1]])]
+            self.tris += [
+                            Triangle([vertices[b] for b in [a, -a-1, -a-2]], flipped, backCull),
+                            Triangle([vertices[b] for b in [a, -a-2, abs(-a-2)-1]], flipped, backCull)
+                         ]
         if (n-2)%2 == 1:
             a = (n-2)//2
-            self.tris.append(Triangle([vertices[b] for b in [a, -a-1, -a-2]]))
+            self.tris.append(Triangle([vertices[b] for b in [a, -a-1, -a-2]], flipped, backCull))
 
     def preRender(self, cam):
         '''
@@ -204,20 +207,23 @@ class NGon:
             tri.render(cam)
 
 class Quad(NGon):
-    def __init__(self, vertices):
+    def __init__(self, vertices, flipped=False, backCull=True):
         if len(vertices) > 4:
             raise OverflowError('Too many vertices for a quad.')
         elif len(vertices) < 4:
             raise ValueError('Insufficient number of vertices.')
-        super().__init__(vertices)
+        super().__init__(vertices, flipped, backCull)
 
 class Triangle:
-    def __init__(self, vertices):
+    def __init__(self, vertices, flipped=False, backCull=True):
         self.vertices = vertices
         self.colour = [0, 255, 0]
 
         self.frameColour = list(self.colour)
         self.shouldRender = True
+
+        self.flipNormal = flipped
+        self.shouldCull = backCull
 
     def preRender(self, cam):
         '''
@@ -269,6 +275,9 @@ class Triangle:
         '''
         Return whether or not this triangle has successfully escaped backface culling
         '''
+        if not self.shouldCull:
+            return True
+
         normal = self.getNormal()
         xthetaNormal = fixTan(normal[0], normal[2])
 
@@ -314,7 +323,10 @@ class Triangle:
         V = [self.vertices[2].pos[a]-self.vertices[0].pos[a] for a in range(3)]
 
         # Take the cross product
-        return [U[(a+1)%3]*V[(a+2)%3] - U[(a+2)%3]*V[(a+1)%3] for a in range(3)]
+        normal = [U[(a+1)%3]*V[(a+2)%3] - U[(a+2)%3]*V[(a+1)%3] for a in range(3)]
+        if self.flipNormal:
+            normal = [-a for a in normal]
+        return normal
 
     def getNormal(self):
         '''
@@ -325,7 +337,10 @@ class Triangle:
         V = [self.vertices[2].localPos[a]-self.vertices[0].localPos[a] for a in range(3)]
 
         # Take the cross product
-        return [U[(a+1)%3]*V[(a+2)%3] - U[(a+2)%3]*V[(a+1)%3] for a in range(3)]
+        normal = [U[(a+1)%3]*V[(a+2)%3] - U[(a+2)%3]*V[(a+1)%3] for a in range(3)]
+        if self.flipNormal:
+            normal = [-a for a in normal]
+        return normal
 
     def getShadeColour(self, lights):
         '''
