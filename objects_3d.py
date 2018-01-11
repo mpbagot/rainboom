@@ -214,6 +214,20 @@ class Quad(NGon):
             raise ValueError('Insufficient number of vertices.')
         super().__init__(vertices, flipped, backCull)
 
+class Line:
+    def __init__(self, vertices):
+        self.vertices = vertices
+
+    def preRender(self, cam):
+        for v in range(len(self.vertices)):
+            self.vertices[v].preRender(cam)
+
+    def render(self, cam):
+        for vertex in self.vertices:
+            vertex.render(cam)
+
+        pygame.draw.lines(cam.screen, (0, 0, 0), True, [v.screenPos for v in self.vertices], 3)
+
 class Triangle:
     def __init__(self, vertices, flipped=False, backCull=True):
         self.vertices = vertices
