@@ -29,7 +29,7 @@ WIREFRAME = 5
 WIREFRAME_DOTS = 6
 SHADED = 7
 
-RENDER_MODE = WIREFRAME
+RENDER_MODE = SHADED
 
 AMBIENT_LIGHT_MULT = [31, 31, 31]
 
@@ -40,6 +40,7 @@ class Camera:
         self.fps = 0
         self.screen = screen
         self.scene = None
+        self.sortedFaces = []
 
     def setScene(self, scene):
         '''
@@ -51,6 +52,13 @@ class Camera:
         for g in range(len(self.scene.groups)):
             self.scene.groups[g].preRender(self)
 
+        self.sortedFaces = []
+        for group in self.scene.groups:
+            for obj in group.objects:
+                self.sortedFaces += obj.polygons
+
+        self.sortedFaces = sorted(self.sortedFaces, reverse=True)
+
     def renderScene(self):
         '''
         Render the scene that this camera is set to render
@@ -60,10 +68,11 @@ class Camera:
         if self.scene is None:
             raise ValueError('The scene has not been set for this camera!')
 
-        for group in self.scene.groups:
-            group.render(self)
+        for face in self.sortedFaces:
+            face.render(self)
 
-        self.fps = 1/(time()-start)
+        if time()-start:
+            self.fps = 1/(time()-start)
 
     def renderDebug(self):
         rot = [round(math.degrees(a), 2) for a in self.rot]
@@ -152,10 +161,6 @@ class Object:
         for p in range(len(self.polygons)):
             self.polygons[p].preRender(cam)
 
-    def render(self, cam):
-        for poly in self.polygons:
-            poly.render(cam)
-
 class Group:
     def __init__(self):
         self.objects = []
@@ -167,11 +172,43 @@ class Group:
         for o in range(len(self.objects)):
             self.objects[o].preRender(cam)
 
-    def render(self, cam):
-        for obj in self.objects:
-            obj.render(cam)
+class Primitive:
+    def __lt__(self, other):
+        # if other.__class__.__name__ in ["NGon", "Triangle", "Line", "Quad"]:
+        if isinstance(other, Primitive):
+            return self.getLocalCentrePos()[2] < other.getLocalCentrePos()[2]
+        else:
+            return True
 
-class NGon:
+    def getCentrePos(self):
+        '''
+        Get the 3D position of the centre of the N-Gon
+        '''
+        poss = [vert.pos for vert in self.vertices]
+
+        # Average the three positions
+        avgPos = [0, 0, 0]
+        for i in range(3):
+            value = sum([pos[i] for pos in poss])/len(poss)
+            avgPos[i] = value
+
+        return avgPos
+
+    def getLocalCentrePos(self):
+        '''
+        Get the 3D position of the centre of the N-Gon in local space
+        '''
+        poss = [vert.localPos for vert in self.vertices]
+
+        # Average the three positions
+        avgPos = [0, 0, 0]
+        for i in range(3):
+            value = sum([pos[i] for pos in poss])/len(poss)
+            avgPos[i] = value
+
+        return avgPos
+
+class NGon(Primitive):
     def __init__(self, vertices, flipped=False, backCull=True):
         # Check the number of vertices
         if len(vertices) < 3:
@@ -214,7 +251,7 @@ class Quad(NGon):
             raise ValueError('Insufficient number of vertices.')
         super().__init__(vertices, flipped, backCull)
 
-class Line:
+class Line(Primitive):
     def __init__(self, vertices):
         self.vertices = vertices
 
@@ -228,7 +265,7 @@ class Line:
 
         pygame.draw.lines(cam.screen, (0, 0, 0), True, [v.screenPos for v in self.vertices], 3)
 
-class Triangle:
+class Triangle(Primitive):
     def __init__(self, vertices, flipped=False, backCull=True):
         self.vertices = vertices
         self.colour = [0, 255, 0]
@@ -309,24 +346,10 @@ class Triangle:
         if diff > math.pi:
             diff = 2*math.pi-diff
 
-        if diff > 5*math.pi/9:
+        if diff > 4.75*math.pi/9:
             return False
 
         return True
-
-    def getCentrePos(self):
-        '''
-        Get the 3D position of the centre of the triangle
-        '''
-        poss = [vert.pos for vert in self.vertices]
-
-        # Average the three positions
-        avgPos = [0, 0, 0]
-        for i in range(3):
-            value = sum([pos[i] for pos in poss])/len(poss)
-            avgPos[i] = value
-
-        return avgPos
 
     def getGlobalNormal(self):
         '''
