@@ -6,7 +6,8 @@ from objects_3d import *
 pygame.init()
 
 if __name__ == "__main__":
-    screen = pygame.display.set_mode(SCREEN_SIZE)
+    flags = pygame.DOUBLEBUF | pygame.HWSURFACE
+    screen = pygame.display.set_mode(SCREEN_SIZE, flags)
 
     scene = Scene()
     obj = Object()
@@ -26,15 +27,19 @@ if __name__ == "__main__":
     points = [Vertex(a, 0, 5) for a in range(-20, 20)]
 
     # points = [Vertex(0, 5, 5), Vertex(5, -5, 5), Vertex(-5, -5, 5)]
-    points = [Vertex(0, 0, 5), Vertex(0, 5, 5), Vertex(2.5, 7.5, 5), Vertex(5, 5, 5), Vertex(5, 0, 5)]
+    points1 = [Vertex(0, 0, 5), Vertex(0, 5, 5), Vertex(5, 5, 5), Vertex(5, 0, 5)]
+    points2 = [Vertex(0, 0, 10), Vertex(0, 5, 10), Vertex(5, 5, 10), Vertex(5, 0, 10)]
+    points3 = [Vertex(0, 0, 10), Vertex(0, 0, 5), Vertex(0, 5, 5), Vertex(0, 5, 10)]
+    points4 = [Vertex(5, 0, 10), Vertex(5, 0, 5), Vertex(5, 5, 5), Vertex(5, 5, 10)]
     # faces = [Triangle(points)]
-    faces = [NGon(points)]
+    faces = [Quad(points1), Quad(points2, flipped=True), Quad(points3, flipped=True), Quad(points4)]
 
     for face in faces:
         obj.addPolygon(face)
 
     scene.addObject(obj)
     pLight = DirectionalLight([0, 0, 0], 1)
+    pLight = PointLight([0, 0, 0], 25)
     lightPointer = scene.addLight(pLight)
 
     cams[0].setScene(scene)
@@ -46,10 +51,17 @@ if __name__ == "__main__":
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_c:
                     camIndex = not camIndex
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                break
 
+        # Clear the screen
         screen.fill((255, 255, 255))
+        # Run pre-render calculations
         cams[int(camIndex)].preRender()
+        # Render the scene
         cams[int(camIndex)].renderScene()
+        # Render some debug information about the camera
         cams[int(camIndex)].renderDebug()
 
         keys = pygame.key.get_pressed()
@@ -65,18 +77,19 @@ if __name__ == "__main__":
 
         # Handle basic cam motion
         if keys[pygame.K_UP]:
-            cams[int(camIndex)].pos[2] += 0.01
+            cams[int(camIndex)].pos[2] += 0.05
         elif keys[pygame.K_DOWN]:
-            cams[int(camIndex)].pos[2] -= 0.01
+            cams[int(camIndex)].pos[2] -= 0.05
         if keys[pygame.K_RIGHT]:
-            cams[int(camIndex)].pos[0] += 0.01
+            cams[int(camIndex)].pos[0] += 0.05
         if keys[pygame.K_LEFT]:
-            cams[int(camIndex)].pos[0] -= 0.01
+            cams[int(camIndex)].pos[0] -= 0.05
 
         if keys[pygame.K_l]:
-            scene.lights[lightPointer].rot[0] += 0.01
+            scene.lights[lightPointer].pos[2] += 0.01
+            print(scene.lights[lightPointer].pos[2])
         elif keys[pygame.K_o]:
-            scene.lights[lightPointer].rot[0] -= 0.01
+            scene.lights[lightPointer].pos[2] -= 0.01
 
         if pygame.time.get_ticks()%5000 < 50:
             print('Current FPS:', cams[int(camIndex)].fps)
