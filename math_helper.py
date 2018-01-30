@@ -27,31 +27,20 @@ def fixTan(opp, adj):
             return math.pi +result
     return 0
 
+def normalise(vector):
+    '''
+    Normalise a vector
+    '''
+    mag = math.sqrt(sum([a**2 for a in vector]))
+    return [a/mag for a in vector]
+
 def getAngleNormalToLight(normal, normalPos, light):
     '''
     Get the angle between a given normal vector and a given light's position
     '''
-    rotation = [0, 0, 0]
+    # Get the position of the light
+    lightPos = light.getPos(normalPos)
+    lightVec = normalise([normalPos[a]-lightPos[a] for a in range(3)])
+    normalVec = normalise(normal)
 
-    # Find the rotation angles of the normal with respect to [0, 0, 0]
-    rotation[0] = fixTan(normal[2], normal[0])-math.pi/2
-    xzMag = math.sqrt(normal[2]**2+normal[0]**2)
-    rotation[1] = math.atan(normal[1]/xzMag)
-
-    # Create a temporary vertex and camera
-    tempVert = objects_3d.Vertex(light.getPos(normalPos))
-    tempCam = objects_3d.Camera(normalPos, rotation, None)
-
-    # Recalculate the position
-    pos = tempVert.getLocalPos(tempCam)
-
-    # Calculate the angle
-    xyMag = math.sqrt(pos[1]**2+pos[0]**2)
-    if xyMag < 0.0001:
-        result = math.pi/2
-    else:
-        result = abs(fixTan(xyMag, pos[2]))
-
-    if result > math.pi/2 or result < 0:
-        return 0
-    return math.pi/2-result
+    return max(math.pi/2-math.acos(sum([lightVec[a]*normalVec[a] for a in range(3)])), 0)
