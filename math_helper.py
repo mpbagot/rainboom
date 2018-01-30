@@ -44,3 +44,8 @@ def getAngleNormalToLight(normal, normalPos, light):
     normalVec = normalise(normal)
 
     return max(math.pi/2-math.acos(sum([lightVec[a]*normalVec[a] for a in range(3)])), 0)
+
+def getAngleBetween(vector1, vector2):
+    vec1 = normalise(vector1)
+    vec2 = normalise(vector2)
+    return math.acos(sum([vec1[a]*vec2[a] for a in range(3)]))
