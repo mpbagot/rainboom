@@ -14,7 +14,7 @@ if __name__ == "__main__":
     scene = Scene()
     obj = Object()
 
-    cams = [Camera([0, 0, 0], [0, 0, 0], screen), Camera([0, 5, 5], [-math.pi/2, -math.pi/2, 0], screen)]
+    cams = [Camera([0, 0, 0], [0, 0, 0], screen), Camera([0, 10, 5], [-math.pi/2, -math.pi/2, 0], screen)]
 
     camIndex = False
 
@@ -37,9 +37,9 @@ if __name__ == "__main__":
     faces = []#Quad(points1), Quad(points2, flipped=True), Quad(points3, flipped=True), Quad(points4)]
 
     points = [Vertex(40, 5, 5), Vertex(40, -5, 5), Vertex(-40, -5, 5), Vertex(-40, 5, 5)]
-    points2 = [Vertex(0, -5, -20), Vertex(0, 5, -20), Vertex(40, 5, 5), Vertex(40, -5, 5)]
+    points2 = [Vertex(0, 5, -20), Vertex(0, -5, -20), Vertex(40, -5, 5), Vertex(40, 5, 5)]
     points3 = [Vertex(-40, 5, 5), Vertex(-40, -5, 5), Vertex(0, -5, -20), Vertex(0, 5, -20)]
-    faces += [Quad(points), Quad(points2, backCull=False), Quad(points3, backCull=False)]
+    faces += [Quad(points), Quad(points2, backCull=True), Quad(points3, backCull=True)]
 
     for face in faces:
         obj.addPolygon(face)
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         elif keys[pygame.K_o]:
             scene.lights[lightPointer].pos[2] -= 0.01
 
-        if pygame.time.get_ticks()%5000 < 50:
+        if pygame.time.get_ticks()%1000 < 20:
             print('Current FPS:', cams[int(camIndex)].fps)
 
         pygame.display.flip()

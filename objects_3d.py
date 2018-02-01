@@ -148,7 +148,7 @@ class Triangle(Primitive):
         lessZ = [a.localPos[2] < 0 for a in self.vertices]
         if any(lessZ) and not all(lessZ):
             # Scale it to z=NEAR_CLIP
-            less = [v for v, vert in enumerate(self.vertices) if vert.localPos[2] < 0]
+            less = [v for v, vert in enumerate(self.vertices) if lessZ[v]]
             great = [v for v in range(3) if v not in less]
             for lIn in less:
                 lPos = self.vertices[lIn].localPos
@@ -163,6 +163,8 @@ class Triangle(Primitive):
                     vector = [a*zRatio for a in vector]
                     # Calculate and set the position
                     pos = [gPos[a]-vector[a] for a in range(3)]
+
+                    lPosses.append([pos, None])
 
                     # Get the offscreen point's position and the onscreen point's position for scaling
                     screenPos = list(Vertex.projectPoint(pos))
@@ -187,25 +189,26 @@ class Triangle(Primitive):
                     # Scale the screen position if the position is actually offscreen, otherwise, just leave it
                     # if not (0 < screenPos[a] < SCREEN_SIZE[a]) else screenPos[a]
                     screenPos = [int((screenPos[a]-onscreenPos[a])*ratio+onscreenPos[a]) for a in (0, 1)]
-                    lPosses.append(tuple(screenPos))
+                    lPosses[-1][-1] = screenPos
 
                 if len(lPosses) == 2:
                     # Construct the quad as required using lPosses
-                    vPos = [tuple(lPosses[0]), tuple(lPosses[1]), tuple(self.vertices[great[1]].screenPos)]
+                    vPos = [lPosses[0], lPosses[1], [self.vertices[great[1]].localPos, self.vertices[great[1]].screenPos]]
                     vertices = [Vertex([0, 0, 0]) for a in vPos]
 
                     # Set the screen positions for the vertices
                     for v in range(len(vertices)):
                         vertices[v].screenScale = 1
                         # Project the 3D point to the 2D screen
-                        vertices[v].screenPos = vPos[v]
+                        vertices[v].screenPos = vPos[v][1]
+                        vertices[v].localPos = vPos[v][0]
 
                     # Duplicate this triangle, but replace the vertices
                     t = Triangle.fromExisting(self, vertices)
                     cam.addFrameFace(t)
 
                 # Set the screenPos
-                self.vertices[lIn].screenPos = tuple(lPosses[0])
+                self.vertices[lIn].localPos, self.vertices[lIn].screenPos = lPosses[0]
 
         self.shouldRender = self.backFaceCull()
         if not self.shouldRender:
@@ -253,23 +256,16 @@ class Triangle(Primitive):
             return True
 
         normal = self.getNormal()
-        xthetaNormal = fixTan(normal[0], normal[2])
+        xthetaNormal = math.atan2(normal[0], normal[2])
 
-        poss = [vert.localPos for vert in self.vertices]
+        # Get the centre position of the face
+        avgPos = self.getCentrePos()
 
-        # Average the three positions
-        avgPos = [0, 0, 0]
-        for i in range(3):
-            value = sum([pos[i] for pos in poss])/len(poss)
-            avgPos[i] = value
-
-        xthetaCam = fixTan(avgPos[0], avgPos[2])
+        xthetaCam = math.atan2(avgPos[0], avgPos[2])
 
         diff = abs(xthetaCam-xthetaNormal)
-        if diff > math.pi:
-            diff = 2*math.pi-diff
 
-        if diff > 0.51*math.pi:
+        if diff > 0.52*math.pi:
             return False
 
         return True
