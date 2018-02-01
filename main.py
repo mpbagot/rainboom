@@ -2,6 +2,8 @@ import pygame
 import math
 
 from objects_3d import *
+from scene_objects import *
+from lights import *
 
 pygame.init()
 
@@ -32,7 +34,12 @@ if __name__ == "__main__":
     points3 = [Vertex(0, 0, 10), Vertex(0, 0, 5), Vertex(0, 5, 5), Vertex(0, 5, 10)]
     points4 = [Vertex(5, 0, 10), Vertex(5, 0, 5), Vertex(5, 5, 5), Vertex(5, 5, 10)]
     # faces = [Triangle(points)]
-    faces = [Quad(points1), Quad(points2, flipped=True), Quad(points3, flipped=True), Quad(points4)]
+    faces = []#Quad(points1), Quad(points2, flipped=True), Quad(points3, flipped=True), Quad(points4)]
+
+    points = [Vertex(40, 5, 5), Vertex(40, -5, 5), Vertex(-40, -5, 5), Vertex(-40, 5, 5)]
+    points2 = [Vertex(0, -5, -20), Vertex(0, 5, -20), Vertex(40, 5, 5), Vertex(40, -5, 5)]
+    points3 = [Vertex(-40, 5, 5), Vertex(-40, -5, 5), Vertex(0, -5, -20), Vertex(0, 5, -20)]
+    faces += [Quad(points), Quad(points2, backCull=False), Quad(points3, backCull=False)]
 
     for face in faces:
         obj.addPolygon(face)

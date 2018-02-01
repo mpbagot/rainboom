@@ -31,8 +31,11 @@ def normalise(vector):
     '''
     Normalise a vector
     '''
-    mag = math.sqrt(sum([a**2 for a in vector]))
-    return [a/mag for a in vector]
+    try:
+        mag = math.sqrt(sum([a**2 for a in vector]))
+        return [a/mag for a in vector]
+    except:
+        return [0, 0, 0]
 
 def getAngleNormalToLight(normal, normalPos, light):
     '''

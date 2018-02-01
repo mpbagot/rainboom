@@ -2,6 +2,7 @@ import pygame
 
 import math
 from time import time
+from copy import deepcopy
 
 from math_helper import *
 
@@ -23,7 +24,7 @@ SHADING_MODE = FLAT
 HARD_OUTLINE = 3
 NO_OUTLINE = 4
 
-POLY_OUTLINE = HARD_OUTLINE
+POLY_OUTLINE = NO_OUTLINE
 
 WIREFRAME = 5
 WIREFRAME_DOTS = 6
@@ -33,158 +34,18 @@ RENDER_MODE = SHADED
 
 AMBIENT_LIGHT_MULT = [31, 31, 31]
 
-class Camera:
-    def __init__(self, pos, rot, screen):
-        self.rot = rot
-        self.pos = pos
-        self.fps = 0
-        self.screen = screen
-        self.scene = None
-        self.sortedFaces = []
-
-    def setScene(self, scene):
-        '''
-        Set the scene to be rendered by this camera
-        '''
-        self.scene = scene
-
-    def preRender(self):
-        for g in range(len(self.scene.groups)):
-            self.scene.groups[g].preRender(self)
-
-        self.sortedFaces = []
-        for group in self.scene.groups:
-            for obj in group.objects:
-                self.sortedFaces += obj.polygons
-
-        self.sortedFaces = sorted(self.sortedFaces, reverse=True)
-
-    def renderScene(self):
-        '''
-        Render the scene that this camera is set to render
-        '''
-        start = time()
-
-        if self.scene is None:
-            raise ValueError('The scene has not been set for this camera!')
-
-        for face in self.sortedFaces:
-            face.render(self)
-
-        if time()-start:
-            self.fps = 1/(time()-start)
-
-    def renderDebug(self):
-        rot = [round(math.degrees(a), 2) for a in self.rot]
-        pos = [round(a, 2) for a in self.pos]
-        font = pygame.font.SysFont(None, 20)
-        text = font.render("Rotation:"+str(rot), True, (0, 0, 255))
-        self.screen.blit(text, [10, 10])
-        text = font.render("Position:"+str(pos), True, (0, 0, 255))
-        self.screen.blit(text, [10, 30])
-
-class PointLight:
-    def __init__(self, pos, power):
-        self.power = power
-        self.pos = pos
-        self.colour = [255, 255, 255]
-
-    def setBrightness(self, power):
-        self.power = power
-
-    def setColour(self, colour):
-        self.colour = colour
-
-    def getPos(self, otherPos):
-        return self.pos
-
-    def calculateFalloff(self, otherPos):
-        '''
-        Calculate the light level at a given position based on falloff
-        '''
-        dist = math.sqrt(sum([(otherPos[a]-self.pos[a])**2 for a in range(len(otherPos))]))
-        if dist == 0:
-            return 999999
-        return self.power/(dist**2)
-
-class DirectionalLight(PointLight):
-    def __init__(self, rot, power):
-        super().__init__([0, 0, 0], power)
-        self.rot = rot
-
-    def getPos(self, otherPos):
-        calcPos = [0, 0, 0]
-
-        calcPos[0] = 10*math.cos(self.rot[0])
-        calcPos[2] = 10*math.sin(self.rot[0])
-        calcPos[1] = 10*math.tan(self.rot[1])
-
-        return [otherPos[a]-calcPos[a] for a in range(3)]
-
-    def calculateFalloff(self, otherPos):
-        '''
-        Return the light brightness because it's the same regardless of position
-        '''
-        return self.power
-
-class Scene:
-    def __init__(self):
-        self.groups = []
-        self.lights = []
-
-    def addGroup(self, group):
-        if isinstance(group, Object):
-            self.addObject(group)
-            return
-        self.groups.append(group)
-
-    def addObject(self, obj):
-        group = Group()
-        group.addObject(obj)
-        self.groups.append(group)
-
-    def addLight(self, light):
-        self.lights.append(light)
-        return len(self.lights)-1
-
-    def getLights(self):
-        return self.lights
-
-class Object:
-    def __init__(self):
-        self.polygons = []
-
-    def addPolygon(self, poly):
-        self.polygons.append(poly)
-
-    def preRender(self, cam):
-        for p in range(len(self.polygons)):
-            self.polygons[p].preRender(cam)
-
-class Group:
-    def __init__(self):
-        self.objects = []
-
-    def addObject(self, obj):
-        self.objects.append(obj)
-
-    def preRender(self, cam):
-        for o in range(len(self.objects)):
-            self.objects[o].preRender(cam)
-
 class Primitive:
     def __lt__(self, other):
-        # if other.__class__.__name__ in ["NGon", "Triangle", "Line", "Quad"]:
         if isinstance(other, Primitive):
-            return self.getLocalCentrePos()[2] < other.getLocalCentrePos()[2]
+            return self.getCentrePos()[2] < other.getCentrePos()[2]
         else:
             return True
 
     def getCentrePos(self):
         '''
-        Get the 3D position of the centre of the N-Gon
+        Get the 3D position of the centre of the N-Gon in local space
         '''
-        poss = [vert.pos for vert in self.vertices]
+        poss = [vert.localPos for vert in self.vertices]
 
         # Average the three positions
         avgPos = [0, 0, 0]
@@ -194,11 +55,11 @@ class Primitive:
 
         return avgPos
 
-    def getLocalCentrePos(self):
+    def getGlobalCentrePos(self):
         '''
         Get the 3D position of the centre of the N-Gon in local space
         '''
-        poss = [vert.localPos for vert in self.vertices]
+        poss = [vert.pos for vert in self.vertices]
 
         # Average the three positions
         avgPos = [0, 0, 0]
@@ -267,7 +128,7 @@ class Line(Primitive):
 
 class Triangle(Primitive):
     def __init__(self, vertices, flipped=False, backCull=True):
-        self.vertices = vertices
+        self.vertices = deepcopy(vertices)
         self.colour = [0, 255, 0]
 
         self.frameColour = list(self.colour)
@@ -283,6 +144,69 @@ class Triangle(Primitive):
         for v in range(len(self.vertices)):
             self.vertices[v].preRender(cam)
 
+        # Check if any point is behind z=0
+        lessZ = [a.localPos[2] < 0 for a in self.vertices]
+        if any(lessZ) and not all(lessZ):
+            # Scale it to z=NEAR_CLIP
+            less = [v for v, vert in enumerate(self.vertices) if vert.localPos[2] < 0]
+            great = [v for v in range(3) if v not in less]
+            for lIn in less:
+                lPos = self.vertices[lIn].localPos
+                lPosses = []
+                for gIn in great:
+                    gPos = self.vertices[gIn].localPos
+                    # Calculate the vector between the two points
+                    vector = [gPos[a] - lPos[a] for a in range(3)]
+                    # Calculate the scale ratio
+                    zRatio = abs((gPos[2]-NEAR_CLIP*1.5)/vector[2])
+                    # Scale the vector
+                    vector = [a*zRatio for a in vector]
+                    # Calculate and set the position
+                    pos = [gPos[a]-vector[a] for a in range(3)]
+
+                    # Get the offscreen point's position and the onscreen point's position for scaling
+                    screenPos = list(Vertex.projectPoint(pos))
+                    onscreenPos = Vertex.projectPoint(self.vertices[gIn].localPos)
+
+                    # Determine the correct ratio to use
+                    ratio = 1
+                    testX = screenPos[0] != onscreenPos[0]
+                    testY = screenPos[1] != onscreenPos[1]
+
+                    if testX and screenPos[0] > SCREEN_SIZE[0]:
+                        ratio = (SCREEN_SIZE[0]-onscreenPos[0])/(screenPos[0]-onscreenPos[0])
+                    elif testX and screenPos[0] < 0:
+                        ratio = onscreenPos[0]/(screenPos[0]-onscreenPos[0])
+                    elif testY and screenPos[1] > SCREEN_SIZE[1]:
+                        ratio = (SCREEN_SIZE[1]-onscreenPos[1])/(screenPos[1]-onscreenPos[1])
+                    elif testY and screenPos[1] < 0:
+                        ratio = onscreenPos[1]/(screenPos[1]-onscreenPos[1])
+
+                    ratio = abs(ratio)
+
+                    # Scale the screen position if the position is actually offscreen, otherwise, just leave it
+                    # if not (0 < screenPos[a] < SCREEN_SIZE[a]) else screenPos[a]
+                    screenPos = [int((screenPos[a]-onscreenPos[a])*ratio+onscreenPos[a]) for a in (0, 1)]
+                    lPosses.append(tuple(screenPos))
+
+                if len(lPosses) == 2:
+                    # Construct the quad as required using lPosses
+                    vPos = [tuple(lPosses[0]), tuple(lPosses[1]), tuple(self.vertices[great[1]].screenPos)]
+                    vertices = [Vertex([0, 0, 0]) for a in vPos]
+
+                    # Set the screen positions for the vertices
+                    for v in range(len(vertices)):
+                        vertices[v].screenScale = 1
+                        # Project the 3D point to the 2D screen
+                        vertices[v].screenPos = vPos[v]
+
+                    # Duplicate this triangle, but replace the vertices
+                    t = Triangle.fromExisting(self, vertices)
+                    cam.addFrameFace(t)
+
+                # Set the screenPos
+                self.vertices[lIn].screenPos = tuple(lPosses[0])
+
         self.shouldRender = self.backFaceCull()
         if not self.shouldRender:
             return
@@ -293,7 +217,6 @@ class Triangle(Primitive):
         '''
         Render this triangle to the given camera's screen
         '''
-        # TODO Somehow figure out how to render even if some points cannot be rendered, or are offscreen
         if not self.shouldRender:
             return
 
@@ -313,7 +236,7 @@ class Triangle(Primitive):
                 pass
 
         # render hard edges on the polygon if option set
-        if POLY_OUTLINE == HARD_OUTLINE or RENDER_MODE == WIREFRAME:
+        if POLY_OUTLINE == HARD_OUTLINE or RENDER_MODE in [WIREFRAME, WIREFRAME_DOTS]:
             if RENDER_MODE == WIREFRAME_DOTS:
                 [vertex.render(cam) for vertex in self.vertices]
 
@@ -346,7 +269,7 @@ class Triangle(Primitive):
         if diff > math.pi:
             diff = 2*math.pi-diff
 
-        if diff > 4.75*math.pi/9:
+        if diff > 0.51*math.pi:
             return False
 
         return True
@@ -388,7 +311,7 @@ class Triangle(Primitive):
         # TODO Get other lighting factors here
         # diffuse, specular, etc...
         for light in lights:
-            centrePos = self.getCentrePos()
+            centrePos = self.getGlobalCentrePos()
             power = light.calculateFalloff(centrePos)
 
             normal = self.getGlobalNormal()
@@ -402,6 +325,13 @@ class Triangle(Primitive):
         shadeColour = [self.colour[channel]*(lightMult[channel]) for channel in range(len(self.colour))]
 
         return [min(channel, 255) for channel in shadeColour]
+
+    @staticmethod
+    def fromExisting(triangle, vertices):
+        t = Triangle(vertices)
+        t.frameColour = triangle.frameColour
+        t.shouldCull = triangle.shouldCull
+        return t
 
 class Vertex:
     def __init__(self, x, y=0, z=0):
@@ -431,7 +361,7 @@ class Vertex:
         self.screenScale = int((1-(dist/FAR_CLIP))*10) if dist < FAR_CLIP else 0
 
         # Project the 3D point to the 2D screen
-        self.screenPos = self.projectPoint(self.localPos)
+        self.screenPos = Vertex.projectPoint(self.localPos)
 
         # Get the distance and perform a check
         if NEAR_CLIP > dist or dist > FAR_CLIP:
@@ -454,12 +384,16 @@ class Vertex:
 
         return self.screenPos
 
-    def projectPoint(self, localPos):
+    @staticmethod
+    def projectPoint(localPos):
         '''
         Project a 3D point to the 2D screen space
         '''
         global CAMERA_DEPTH
         global SCREEN_SIZE
+
+        if localPos[2] == 0:
+            return (-50, -50)
 
         x = (SCREEN_SIZE[0]/2)+localPos[0]*CAMERA_DEPTH/localPos[2]
         y = (SCREEN_SIZE[1]/2)-localPos[1]*CAMERA_DEPTH/localPos[2]
@@ -478,6 +412,7 @@ class Vertex:
         '''
         Get a position for the point with respect to the camera
         '''
+        # Translate the position
         point = [self.pos[a]-camera.pos[a] for a in range(3)]
 
         # Calculate the angle
