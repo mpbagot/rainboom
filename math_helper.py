@@ -32,8 +32,8 @@ def normalise(vector):
     Normalise a vector
     '''
     try:
-        mag = math.sqrt(sum([a**2 for a in vector]))
-        return [a/mag for a in vector]
+        mag = (sum([a**2 for a in vector]))**-.5
+        return [a*mag for a in vector]
     except:
         return [0, 0, 0]
 
