@@ -4,6 +4,7 @@ import math
 from objects_3d import *
 from scene_objects import *
 from lights import *
+from materials import *
 
 pygame.init()
 
@@ -36,10 +37,14 @@ if __name__ == "__main__":
     # faces = [Triangle(points)]
     faces = []#Quad(points1), Quad(points2, flipped=True), Quad(points3, flipped=True), Quad(points4)]
 
+    mat = Material()
+    shader = DiffuseShader([0, 255, 0])
+    mat.setShader('diffuse', shader)
+
     points = [Vertex(40, 5, 5), Vertex(40, -5, 5), Vertex(-40, -5, 5), Vertex(-40, 5, 5)]
     points2 = [Vertex(0, 5, -20), Vertex(0, -5, -20), Vertex(40, -5, 5), Vertex(40, 5, 5)]
     points3 = [Vertex(-40, 5, 5), Vertex(-40, -5, 5), Vertex(0, -5, -20), Vertex(0, 5, -20)]
-    faces += [Quad(points), Quad(points2, backCull=True), Quad(points3, backCull=True)]
+    faces += [Quad(points, mat), Quad(points2, mat, backCull=True), Quad(points3, mat, backCull=True)]
 
     for face in faces:
         obj.addPolygon(face)

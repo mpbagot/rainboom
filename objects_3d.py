@@ -29,6 +29,7 @@ POLY_OUTLINE = NO_OUTLINE
 WIREFRAME = 5
 WIREFRAME_DOTS = 6
 SHADED = 7
+TEXTURED = 8
 
 RENDER_MODE = SHADED
 
@@ -70,7 +71,7 @@ class Primitive:
         return avgPos
 
 class NGon(Primitive):
-    def __init__(self, vertices, flipped=False, backCull=True):
+    def __init__(self, vertices, material, flipped=False, backCull=True):
         # Check the number of vertices
         if len(vertices) < 3:
             raise ValueError("Insufficient number of vertices.")
@@ -83,12 +84,12 @@ class NGon(Primitive):
         n = len(vertices)
         for a in range((n-2)//2):
             self.tris += [
-                            Triangle([vertices[b] for b in [a, -a-1, -a-2]], flipped, backCull),
-                            Triangle([vertices[b] for b in [a, -a-2, abs(-a-2)-1]], flipped, backCull)
+                            Triangle([vertices[b] for b in [a, -a-1, -a-2]], material, flipped, backCull),
+                            Triangle([vertices[b] for b in [a, -a-2, abs(-a-2)-1]], material, flipped, backCull)
                          ]
         if (n-2)%2 == 1:
             a = (n-2)//2
-            self.tris.append(Triangle([vertices[b] for b in [a, -a-1, -a-2]], flipped, backCull))
+            self.tris.append(Triangle([vertices[b] for b in [a, -a-1, -a-2]], material, flipped, backCull))
 
     def preRender(self, cam):
         '''
@@ -105,12 +106,12 @@ class NGon(Primitive):
             tri.render(cam)
 
 class Quad(NGon):
-    def __init__(self, vertices, flipped=False, backCull=True):
+    def __init__(self, vertices, material, flipped=False, backCull=True):
         if len(vertices) > 4:
             raise OverflowError('Too many vertices for a quad.')
         elif len(vertices) < 4:
             raise ValueError('Insufficient number of vertices.')
-        super().__init__(vertices, flipped, backCull)
+        super().__init__(vertices, material, flipped, backCull)
 
 class Line(Primitive):
     def __init__(self, vertices):
@@ -127,11 +128,11 @@ class Line(Primitive):
         pygame.draw.lines(cam.screen, (0, 0, 0), True, [v.screenPos for v in self.vertices], 3)
 
 class Triangle(Primitive):
-    def __init__(self, vertices, flipped=False, backCull=True):
+    def __init__(self, vertices, material, flipped=False, backCull=True):
         self.vertices = deepcopy(vertices)
-        self.colour = [0, 255, 0]
 
-        self.frameColour = list(self.colour)
+        self.material = material
+        self.frameColour = [255, 255, 255]
         self.shouldRender = True
 
         self.flipNormal = flipped
@@ -214,7 +215,7 @@ class Triangle(Primitive):
         if not self.shouldRender:
             return
 
-        self.frameColour = self.getShadeColour(cam.scene.getLights())
+        self.frameColour = self.material.getColour(self, cam.scene.getLights())
 
     def render(self, cam):
         '''
@@ -234,6 +235,17 @@ class Triangle(Primitive):
                 elif SHADING_MODE == SMOOTH_GOURAUD:
                     pass
                 elif SHADING_MODE == SMOOTH_PHONG:
+                    pass
+            except TypeError:
+                pass
+
+        elif RENDER_MODE == TEXTURED:
+            try:
+                if self.material.isColour():
+                    # No image and UVs set for this poly.
+                    pygame.draw.polygon(cam.screen, self.frameColour, screenPoints)
+                else:
+                    # Render with a texture
                     pass
             except TypeError:
                 pass
@@ -298,33 +310,9 @@ class Triangle(Primitive):
             normal = [-a for a in normal]
         return normal
 
-    def getShadeColour(self, lights):
-        '''
-        Get the flat shading colour of this triangle
-        '''
-        # Start with ambient light
-        lightMult = list(AMBIENT_LIGHT_MULT)
-        # TODO Get other lighting factors here
-        # diffuse, specular, etc...
-        for light in lights:
-            centrePos = self.getGlobalCentrePos()
-            power = light.calculateFalloff(centrePos)
-
-            normal = self.getGlobalNormal()
-            theta = getAngleNormalToLight(normal, centrePos, light)
-
-            diffuse = power*math.sin(theta)
-            lightMult = [lightMult[a]+diffuse*light.colour[a] for a in range(3)]
-
-        lightMult = [a/255 for a in lightMult]
-
-        shadeColour = [self.colour[channel]*(lightMult[channel]) for channel in range(len(self.colour))]
-
-        return [min(channel, 255) for channel in shadeColour]
-
     @staticmethod
     def fromExisting(triangle, vertices):
-        t = Triangle(vertices)
+        t = Triangle(vertices, triangle.material)
         t.frameColour = triangle.frameColour
         t.shouldCull = triangle.shouldCull
         return t
